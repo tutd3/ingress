@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx-public-staging
+  namespace: argocd
+spec:
+  project: argo-tutde
+  source:
+    repoURL: 'https://github.com/tutd3/ingress.git'
+    path: controler
+    targetRevision: HEAD
+    helm:
+      releaseName: ingress-nginx-public-staging
+      valueFiles:
+        - values-public-staging.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+  syncPolicy:
+    automated: {}
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true

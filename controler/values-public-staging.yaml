@@ -1,0 +1,179 @@
+ingress-nginx:
+  controller:
+    image:
+      registry: registry.k8s.io
+      image: ingress-nginx/controller
+      tag: "v1.10.1"
+      pullPolicy: IfNotPresent
+    config:
+      ## APM OTLP
+      allow-snippet-annotations: "true"
+      # main-snippet: |
+      #   load_module /modules_mount/ngx_http_datadog_module.so;
+      # http-snippet: |
+      #   datadog_resource_name $server_name;
+      ## IP and Header Forward
+      enable-real-ip: "true"
+      compute-full-forwarded-for: "true"
+      use-forwarded-headers: "true"
+      ## Timeouts
+      client-body-timeout: 300
+      client-header-timeout: 300
+      keep-alive: 300
+      proxy-send-timeout: 300
+      ## gzip compression
+      use-gzip: "true"
+      gzip-level: 1
+      gzip-min-length: 10240
+      gzip-disable: "msie6"
+      gzip-types: |
+        text/css
+        text/javascript
+        text/xml
+        text/plain
+        text/x-component
+        application/javascript
+        application/x-javascript
+        application/json
+        application/xml
+        application/rss+xml
+        application/atom+xml
+        font/truetype
+        font/opentype
+        application/vnd.ms-fontobject
+        image/svg+xml
+        application/x-font-ttf
+        application/x-web-app-manifest+json
+        application/xhtml+xml
+      # Rate Limit Config
+      # limit-req-status-code: 429
+      # global-rate-limit-memcached-host: "memcached-pg-staging-beta.memcached.svc.cluster.local"
+      # global-rate-limit-memcached-port: "11211"
+    hostPort:
+      enabled: false
+    networkPolicy:
+      enabled: false
+    electionID: ingress-controller
+    ingressClassResource:
+      name: nginx-public
+      default: false
+      controllerValue: k8s.io/ingress-nginx-public
+    ingressClass: nginx-public
+    publishService:
+      enabled: true
+    scope:
+      enabled: false
+    updateStrategy:
+      type: RollingUpdate
+    tolerations:
+      - key: "CriticalAddonsOnly"
+        operator: "Exists"
+      - key: "bitbucket-runner"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+    startupProbe:
+      httpGet:
+        path: "/healthz"
+        port: 10254
+        scheme: HTTP
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 2
+      successThreshold: 1
+      failureThreshold: 5
+    minAvailable: 2
+    resources:
+      limits:
+        cpu: 200m
+        memory: 406Mi
+      requests:
+        cpu: 100m
+        memory: 200Mi
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 80
+      targetMemoryUtilizationPercentage: 80
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 180
+        scaleUp:
+          stabilizationWindowSeconds: 300
+          policies:
+          - type: Pods
+            value: 2
+            periodSeconds: 60
+    keda:
+      enabled: false
+    enableMimalloc: true
+    service:
+      enabled: true
+      external:
+        enabled: true
+      type: NodePort
+      externalTrafficPolicy: Local
+      enableHttp: true
+      enableHttps: true
+      nodePorts:
+        http: 30080
+        https: 30443
+      internal:
+        enabled: false
+    extraModules: {}
+      # - name: ddtracemodule
+      #   image:
+      #     registry: imageregistry-shared-alpha-registry.ap-southeast-5.cr.aliyuncs.com
+      #     image: mekariengineering/nginx-module
+      #     tag: "dd-trace-module-v1.25.3-latest"
+      #     digest: "sha256:9255c68b023bf0cf1d6efedcc8849a0234c0e645c01191f938670822291288e2"
+      #   containerSecurityContext:
+      #     runAsNonRoot: true
+      #     runAsUser: 1000
+      #     runAsGroup: 1000
+      #     allowPrivilegeEscalation: false
+      #     seccompProfile:
+      #       type: RuntimeDefault
+      #     capabilities:
+      #       drop:
+      #       - ALL
+      #     readOnlyRootFilesystem: true
+      #   resources: {}
+    extraEnvs: 
+      - name: DD_AGENT_HOST
+        value: datadog-apm.datadog.svc
+      - name: DD_ENV
+        value: staging
+      - name: DD_SERVICE
+        value: nginx-controler-staging
+    opentelemetry:
+      enabled: false
+      resources:
+        limits:
+          cpu: 200m
+          memory: 406Mi
+        requests:
+          cpu: 100m
+          memory: 200Mi
+    admissionWebhooks:
+      enabled: false
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: false
+      prometheusRule:
+        enabled: false
+
+  defaultBackend:
+    enabled: false
+
+  podSecurityPolicy:
+    enabled: false
+
+  serviceAccount:
+    create: true
